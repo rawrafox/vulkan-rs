@@ -1,0 +1,10 @@
+[package]
+name = "vulkan"
+version = "0.1.0"
+authors = ["Aurora <aurora@aventine.se>"]
+
+[[bin]]
+name = "vulkan-info"
+
+[dependencies]
+bitflags = "0.3"
