@@ -20,4 +20,4 @@ basic = Vulkan::Basic::Builder.new(Nokogiri::XML(File.read(ARGV[0])))
 normalized = Vulkan::Normalized::Builder.new(basic.ast)
 rust = Vulkan::Rust::Builder.new(normalized.ast)
 
-# pp rust.ast
+File.write('rust-ast.json', JSON.pretty_generate(JSON.parse(rust.ast.to_json)))
