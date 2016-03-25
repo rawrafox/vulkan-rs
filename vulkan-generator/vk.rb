@@ -21,3 +21,6 @@ normalized = Vulkan::Normalized::Builder.new(basic.ast)
 rust = Vulkan::Rust::Builder.new(normalized.ast)
 
 File.write('rust-ast.json', JSON.pretty_generate(JSON.parse(rust.ast.to_json)))
+
+File.open('src/extern.rs', 'w+') { |f| rust.ast.to_extern(Vulkan::Output.new(f)) }
+File.open('src/types.rs', 'w+') { |f| rust.ast.to_rust_types(Vulkan::Output.new(f)) }

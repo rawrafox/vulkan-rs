@@ -64,7 +64,7 @@ module Vulkan
     end
 
     class Command < Vulkan::Normalized::Object
-      representation :guard, :queues, :success_codes, :error_codes, :render_pass, :command_buffer_levels, :comment, :return_type, :name, :parameters, :validity, :implicit_external_sync_parameters
+      representation :guard, :block, :queues, :success_codes, :error_codes, :render_pass, :command_buffer_levels, :comment, :return_type, :name, :parameters, :validity, :implicit_external_sync_parameters
     end
 
     class Constant < Vulkan::Normalized::Object
@@ -88,7 +88,7 @@ module Vulkan
     end
 
     class Feature < Vulkan::Normalized::Object
-      representation :api, :name, :number, :blocks, :types
+      representation :api, :name, :number, :blocks, :types, :commands
     end
 
     class Function < Vulkan::Normalized::Object
@@ -163,7 +163,7 @@ module Vulkan
             end
           when Vulkan::Basic::Feature
             if @features == nil || @features.include?(child.name)
-              features << [Feature.new(api: child.api, name: child.name, number: child.number, blocks: [], types: []), child]
+              features << [Feature.new(api: child.api, name: child.name, number: child.number, blocks: [], types: [], commands: []), child]
             end
           when Vulkan::Basic::Extensions
             child.extensions.map do |extension|
@@ -192,6 +192,8 @@ module Vulkan
                     mark_type(param.type, feature)
                   end
 
+                  mark_type(command.return_type, feature)
+
                   command
                 when 'enum'
                   normalized_enums.fetch(block_child[:name])
@@ -215,6 +217,7 @@ module Vulkan
 
           feature.blocks = feature_children
           feature.types = normalized_types.values.select { |x| x.guard == feature }
+          feature.commands = normalized_commands.values.select { |x| x.guard == feature }
         end
 
         AST.new(features: features.map(&:first), extensions: extensions.map(&:first), metadata: metadata)
@@ -236,7 +239,7 @@ module Vulkan
             build_param(member, Member, types)
           end
 
-          normalized_commands[command.name] = Command.new(guard: nil, queues: command.queues, success_codes: command.success_codes, error_codes: command.error_codes, render_pass: command.render_pass, command_buffer_levels: command.command_buffer_levels, comment: command.comment, return_type: return_type, name: command.name, parameters: parameters, validity: validity, implicit_external_sync_parameters: implicit_external_sync)
+          normalized_commands[command.name] = Command.new(guard: nil, block: nil, queues: command.queues, success_codes: command.success_codes, error_codes: command.error_codes, render_pass: command.render_pass, command_buffer_levels: command.command_buffer_levels, comment: command.comment, return_type: return_type, name: command.name, parameters: parameters, validity: validity, implicit_external_sync_parameters: implicit_external_sync)
         end
 
         normalized_commands
@@ -247,9 +250,9 @@ module Vulkan
 
         if param.enum
           new_type = Array.new(type: new_type, length: param.enum)
-        elsif param.name.start_with? 'pfn'
+        elsif param.name.underscore.start_with? 'pfn_'
           new_type = FunctionPointer.new(type: new_type, optional: param.optional)
-        elsif param.name.start_with? 'pp'
+        elsif param.name.underscore.start_with? 'pp_'
           raise ArgumentError if param.lengths && param.lengths.length != 2
 
           l1 = param.lengths ? param.lengths[1] : nil
@@ -259,7 +262,7 @@ module Vulkan
 
           new_type = Pointer.new(type: new_type, length: l1, mutable: param.text.scan(/const/).length == 0, optional: false)
           new_type = Pointer.new(type: new_type, length: l0, mutable: param.text.scan(/const/).length == 0, optional: param.optional)
-        elsif param.name.start_with? 'p'
+        elsif param.name.underscore.start_with? 'p_'
           length = param.lengths ? param.lengths[0] : nil
           mutable = param.text.scan(/const/).length < 1
 
